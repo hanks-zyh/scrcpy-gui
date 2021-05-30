@@ -1,5 +1,9 @@
 const debug = require('debug')('scrcpy')
 const fixPath = require('fix-path')
+const { spawn, exec } = require('child_process')
+const log = require('electron-log');
+const process = require('process');
+
 fixPath()
 const fs = require('fs')
 const open = ({ sender }, options) => {
@@ -8,9 +12,10 @@ const open = ({ sender }, options) => {
 	const { title, source, record, screen, fixed, control, touch, render, bitRate, maxSize, maxFps, orientation, crop, window, border, fullscreen, awake } = config
 	const { open, openMirror, filepath } = record
 
+	var spath = getScrcpyPath()
 	let cmd = 'scrcpy'
-	if (source) {
-		const scrcpyPath = `${source}\\scrcpy.exe`
+	if (spath) {
+		const scrcpyPath = `${spath}\\scrcpy.exe`
 		if (!fs.existsSync(scrcpyPath)) {
 			sender.send('error', { type: 'unknownScrcpyPathException' })
 			return
@@ -19,7 +24,6 @@ const open = ({ sender }, options) => {
 	}
 
 	args.push('--shortcut-mod=lctrl,rctrl')
-	
 	if (title !== '') {
 		args.push('--window-title')
 		args.push(title)
@@ -95,7 +99,6 @@ const open = ({ sender }, options) => {
 	}
 
 	devices.forEach(({ id }) => {
-		const { spawn } = require('child_process')
 		const scrcpy = spawn(cmd, [...args, '-s', `${id}`])
 
 		let opened = false
@@ -105,6 +108,7 @@ const open = ({ sender }, options) => {
 				sender.send('open', id)
 				opened = true
 			}
+			openSndcpy(sender, id)
 			console.log(`stdout: ${data}`)
 		})
 		scrcpy.on('error', (code) => {
@@ -125,8 +129,116 @@ const open = ({ sender }, options) => {
 			}
 		})
 	})
+
+}
+
+
+function execPromise(command) {
+	return new Promise(function (resolve, reject) {
+		exec(command, (error, stdout, stderr) => {
+			if (error) {
+				reject(error);
+				return;
+			}
+
+			resolve(stdout.trim());
+		});
+	});
+}
+
+async function openSndcpy(sender, did) {
+	var spath = getScrcpyPath()
+	//声音  sndcpy
+	let ADB = `${spath}\\adb.exe`
+	let SNDCPY_APK = `${spath}\\sndcpy.apk`
+	let SNDCPY_PORT = 28200
+	try {
+		var result = await execPromise(`${ADB} -s ${did} install -t -r -g ${SNDCPY_APK}`);
+		log.info('result:' + result);
+		var result1 = await execPromise(`${ADB} -s ${did} forward tcp:${SNDCPY_PORT} localabstract:sndcpy`);
+		log.info('result1:' + result1);
+		// var result2 = await execPromise(`${ADB} -s ${did} shell am start com.rom1v.sndcpy/.MainActivity`);
+		// log.info('result2:' + result2);
+	} catch (e) {
+		log.error(e.message);
+	}
+
+}
+function writeObj(obj) {
+	var description = "";
+	for (var i in obj) {
+		var property = obj[i];
+		description += i + " = " + property + "\n";
+	}
+	return (description);
+}
+
+const openPhoneService = ({ sender }, options) => {
+	log.error("switchAudio------device=" + writeObj(options));
+	let device = options.device
+	if (device == null) {
+		log.error("device is null------");
+		return;
+	}
+	let did = device.id
+	var spath = getScrcpyPath()
+	let ADB = `${spath}\\adb.exe`
+	execPromise(`${ADB} -s ${did} shell am start com.rom1v.sndcpy/.MainActivity`).then();
+}
+
+function closeVLC(did) {
+	var spath = getScrcpyPath()
+	let ADB = `${spath}\\adb.exe`
+	execPromise(`${ADB} -s ${did} shell am force-stop  com.rom1v.sndcpy`)
+}
+
+const switchAudio = ({ sender }, options) => {
+	log.error("switchAudio------device=" + writeObj(options));
+	let device = options.device
+	if (device == null) {
+		log.error("device is null------");
+		return;
+	}
+	var spath = getScrcpyPath()
+	let VLC = `${spath}\\VLCPortable\\App\\vlc\\vlc.exe`
+	let SNDCPY_PORT = 28200
+
+
+	log.error("device is " + device.enableAudio);
+	const e = device.enableAudio == true ? true : false;
+	if (!e) {
+		closeVLC(device.id)
+		return
+	}
+	try {
+		let cmd = `${VLC} -Idummy --demux rawaud --network-caching=50 --play-and-exit tcp://localhost:${SNDCPY_PORT}`
+		log.error("device is " + cmd);
+		let child = exec(cmd, (error, stdout, stderr) => {
+			log.error(child.pid)
+		});
+	} catch (e) {
+		log.error(e.message);
+	}
+
+}
+
+function isDebug() {
+	const favor = process.env.FAVOR;
+	console.log("favor: " + favor);
+	return "debug" == favor;
+	// return true;
+}
+function getScrcpyPath() {
+	if (isDebug()) {
+		return ".\\extraResources"
+	} else {
+		return process.resourcesPath + "/extraResources"
+	}
+
 }
 
 export default {
-	open
+	open,
+	switchAudio,
+	openPhoneService,
 }

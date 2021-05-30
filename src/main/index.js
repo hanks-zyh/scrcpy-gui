@@ -56,6 +56,8 @@ function createWindow() {
 	mainWindow.webContents.on('did-finish-load', function () {
 		adb.onDevices(mainWindow.webContents)
 		ipcMain.on('open', scrcpy.open)
+		ipcMain.on('switchAudio', scrcpy.switchAudio)
+		ipcMain.on('openPhoneService', scrcpy.openPhoneService)
 		ipcMain.on('connect', adb.connect)
 		ipcMain.on('disconnect', adb.disconnect)
 

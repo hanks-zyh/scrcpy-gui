@@ -32,6 +32,13 @@
 		"files": [
 			"dist/electron/**/*"
 		],
+		"extraResources": {
+			"from": "./extraResources/",
+			"to": "extraResources"
+		},
+		"electronDownload": {
+			"mirror": "https://npm.taobao.org/mirrors/electron/"
+		  },
 		"dmg": {
 			"contents": [
 				{
@@ -81,6 +88,7 @@
 		"adbkit": "^2.11.1",
 		"custom-electron-titlebar": "^3.2.2",
 		"debug": "^4.1.1",
+		"electron-log": "^4.3.5",
 		"element-ui": "^2.11.1",
 		"fix-path": "^3.0.0",
 		"localstorage": "^1.0.1",
@@ -108,7 +116,7 @@
 		"css-loader": "^0.28.11",
 		"del": "^3.0.0",
 		"devtron": "^1.4.0",
-		"electron": "^2.0.4",
+		"electron": "^2.0.18",
 		"electron-builder": "^20.19.2",
 		"electron-debug": "^1.5.0",
 		"electron-devtools-installer": "^2.2.4",
